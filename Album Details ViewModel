@@ -1,0 +1,42 @@
+import Combine
+import Moya
+
+class AlbumDetailsViewModel: ObservableObject {
+    private let provider = MoyaProvider<APIService>()
+    @Published var images: [Image] = []
+    @Published var filteredImages: [Image] = []
+    @Published var searchQuery: String = ""
+
+    private var cancellables = Set<AnyCancellable>()
+
+    init() {
+        $searchQuery
+            .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
+            .sink { [weak self] query in
+                if query.isEmpty {
+                    self?.filteredImages = self?.images ?? []
+                } else {
+                    self?.filteredImages = self?.images.filter {
+                        $0.title.contains(query)
+                    } ?? []
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    func fetchImages(for albumId: Int) {
+        provider.request(.getAlbumImages(albumId: albumId)) { [weak self] result in
+            switch result {
+            case .success(let response):
+                do {
+                    self?.images = try JSONDecoder().decode([Image].self, from: response.data)
+                    self?.filteredImages = self?.images ?? []
+                } catch {
+                    print("Decoding error: \(error)")
+                }
+            case .failure(let error):
+                print("API error: \(error)")
+            }
+        }
+    }
+}
