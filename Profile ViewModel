@@ -1,0 +1,22 @@
+import Combine
+import Moya
+
+class ProfileViewModel: ObservableObject {
+    private let provider = MoyaProvider<APIService>()
+    @Published var albums: [Album] = []
+
+    func fetchAlbums(for userId: Int) {
+        provider.request(.getUserAlbums(userId: userId)) { [weak self] result in
+            switch result {
+            case .success(let response):
+                do {
+                    self?.albums = try JSONDecoder().decode([Album].self, from: response.data)
+                } catch {
+                    print("Decoding error: \(error)")
+                }
+            case .failure(let error):
+                print("API error: \(error)")
+            }
+        }
+    }
+}
